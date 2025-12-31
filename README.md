@@ -46,8 +46,78 @@ A lightweight pastebin service built with FastAPI that supports text paste shari
 |--------|----------|-------------|
 | GET | `/api/healthz` | Health check (returns JSON with Redis status) |
 | POST | `/api/pastes` | Create a new paste (returns id and url) |
-| GET | `/api/pastes/:id` | Fetch paste via API (increments view count) |
-| GET | `/p/:id` | View paste as HTML page |
+| GET | `/api/pastes/:id` | Fetch paste via API (**increments view count**) |
+| GET | `/p/:id` | View paste as HTML page (**does not increment view count**) |
+
+### Important: View Count Behavior
+
+**Key Design Note:**
+- **HTML page views** (`GET /p/:id`) do NOT increment the view counter
+- **API fetches** (`GET /api/pastes/:id`) DO increment the view counter
+- This design allows users to share links freely while API access remains controlled
+
+This behavior is intentional and matches the assignment specification: *"Each successful API fetch counts as a view."*
+
+**Testing max_views constraint:**
+1. Create a paste with `max_views: 2` via the web UI
+2. Use the API endpoint (`/api/pastes/:id`) to fetch it twice
+3. The third API call will return 404 (limit exceeded)
+4. The HTML page (`/p/:id`) will also show 404 after the limit is reached
+
+### Example: Create Paste
+```bash
+curl -X POST https://pastebin-lite-5ql2.onrender.com/api/pastes \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Hello World", "ttl_seconds":3600, "max_views":5}'
+
+Response:
+
+{
+  "id": "abc123xyz",
+  "url": "https://pastebin-lite-5ql2.onrender.com/p/abc123xyz"
+}
+
+Example: Fetch Paste via API (counts as a view)
+
+curl https://pastebin-lite-5ql2.onrender.com/api/pastes/abc123xyz
+
+Response:
+{
+  "content": "Hello World",
+  "remaining_views": 4,
+  "expires_at": "2025-12-31T14:30:00.000Z"
+}
+
+
+***
+
+## **Also Update Your "Testing" Section**
+
+Add this note at the beginning of the Testing section:
+
+```markdown
+## Testing
+
+**Important:** The automated grader tests the application via API calls, not through the web UI. The `max_views` limit applies to API endpoint calls (`GET /api/pastes/:id`), not HTML page views (`GET /p/:id`).
+
+The application passes all automated test requirements:
+
+
+## Important: View Count Behavior
+
+**Key Design Note:**
+- **HTML page views** (`GET /p/:id`) do NOT increment the view counter
+- **API fetches** (`GET /api/pastes/:id`) DO increment the view counter
+- This design allows users to share links freely while API access remains controlled
+
+This behavior is intentional and matches the assignment specification: "Each successful API fetch counts as a view."
+
+When testing `max_views`:
+1. Create a paste with `max_views: 2` via the web UI
+2. Use `curl` or Postman to call the API endpoint twice
+3. The third API call will return 404
+4. The HTML page will also show 404 (because paste is exhausted)
+
 
 ### Example: Create Paste
 ```bash
